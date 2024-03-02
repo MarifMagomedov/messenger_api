@@ -1,5 +1,3 @@
-import asyncio
-
 from database.models import Country, Base, User
 from config import load_configs
 from sqlalchemy import select, update, or_, create_engine
@@ -12,7 +10,7 @@ class Database:
     def __init__(self):
         self.engine = create_engine(
             # url=f"postgresql+psycopg2://postgres:postgres@localhost:5432/postgres",
-            url=load_configs(database=True).replace('postgres://', 'postgresql+psycopg2://', 1),
+            url=load_configs(database=True).replace('postgres://',  'postgresql+psycopg2://', 1),
             echo=False
         )
         self.session_factory = sessionmaker(self.engine)
@@ -46,7 +44,7 @@ class Database:
             query = select(Country)
             countries = session.execute(query)
             return self.json_countries(sorted(countries.scalars().all(),
-                                                    key=lambda item: item.alpha2))
+                                              key=lambda item: item.alpha2))
 
     def get_country_with_alpha2(self, alpha2: str) -> JSONResponse | list[dict[str, str]] | dict[str, str]:
         with self.session_factory() as session:
@@ -90,18 +88,38 @@ class Database:
 
     def check_user(
             self,
-            email: str = None,
-            login: str = None,
-            phone: str = None,
-            auth: bool = False
+            login: str
     ) -> User | bool:
         with self.session_factory() as session:
-            if auth:
-                query = select(User).where(User.login == login)
-            else:
-                query = select(User).where(or_(User.email == email, User.login == login, User.phone == phone))
-            result = session.execute(query)
-            result = result.fetchone()
-            if result:
-                return result[0]
+            query = select(User).where(User.login == login)
+            user = session.execute(query)
+            user = user.fetchone()
+            if user:
+                return user[0]
             return False
+
+    def check_user_with_email_and_phone(self, email: str, login: str, phone: str) -> User | bool:
+        with self.session_factory() as session:
+            if phone:
+                query = select(User).where(or_(User.login == login, User.email == email, User.phone == phone))
+            else:
+                query = select(User).where(or_(User.login == login, User.email == email))
+            user = session.execute(query)
+            user = user.fetchone()
+            if user:
+                return user[0]
+            return False
+
+    def update_profile(self, login: str, **kwargs):
+        with self.session_factory() as session:
+            query = update(User).where(User.login == login).values(kwargs)
+            session.execute(query)
+            session.flush()
+            session.commit()
+
+    # def update_user_tokens(self, new_password: str, token: str):
+    #     with self.session_factory() as session:
+    #         query = select(User).where(User.password == new_password)
+
+
+database = Database()

@@ -1,11 +1,33 @@
-from jose import jwt
+import re
+from string import ascii_lowercase, ascii_uppercase
+from starlette import status
+from starlette.responses import JSONResponse
+
+from .schemas import UserUpdate
 
 
-SECRET_KEY = '09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7'
-ALGORITHM = 'HS256'
+async def check_valid_update_user_data(user_data: UserUpdate, db) -> JSONResponse | None:
+    error = None
+    if not db.check_country_code(user_data.countryCode):
+        error = 'Вы ввели некорректный код страны'
+    elif user_data.phone is not None:
+        if not re.fullmatch(r'\+\d+', user_data.phone):
+            error = 'Вы ввели некорректный номер телефона!'
+    elif user_data.phone is not None:
+        if len(user_data.image) <= 200:
+            error = 'Вы отправили некорректное фото!!'
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={
+            'reason': error
+        }
+    ) if error is not None else error
 
 
-async def read_token(token: str) -> str:
-    decode_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    login = decode_token.get('sub')
-    return login
+async def check_valid_password(password: str) -> bool:
+    return (
+        not 6 <= len(password) <= 100
+        or not any(i in ascii_lowercase for i in password)
+        or not any(i in ascii_uppercase for i in password)
+        or not any(i in '0123456789' for i in password)
+    )

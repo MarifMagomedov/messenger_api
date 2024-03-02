@@ -1,19 +1,23 @@
 import uvicorn
 from fastapi import FastAPI, Query
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette import status
-from database.database_main import Database
+
 from auth.auth_main import router as auth_router
-from solution.profile.profile_main import router as profile_router
+from solution.profile import router as profile_router
+from friends.friends_main import router as friends_router
+from database.database_main import database as db
 
 
 app = FastAPI(
     title='PROD'
 )
-db = Database()
 
 
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(friends_router)
 
 
 @app.get('/api/ping', status_code=status.HTTP_200_OK)
@@ -31,9 +35,18 @@ async def get_all_countries(region: list[str] = Query(default=None)):
 
 @app.get('/api/countries/{alpha2}')
 async def get_one_country(alpha2: str):
-    country = db.get_country_with_alpha2(alpha2)
+    country = db.get_country_with_alpha2(alpha2.upper())
     return country
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            'reason': 'Вы отправили некорректную форму'
+        }
+    )
 
 if __name__ == "__main__":
     uvicorn.run("app:app", port=8080, reload=True, access_log=True)

@@ -17,3 +17,4 @@ def load_configs(database: bool = None) -> str | JWTConfig:
         algorithm=os.environ['ALGORITHM'],
         secret_key=os.environ['SECRET_KEY']
     )
+

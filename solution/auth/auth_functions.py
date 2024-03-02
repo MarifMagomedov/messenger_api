@@ -14,11 +14,7 @@ ALGORITHM = 'HS256'
 
 async def check_valid_user_data(user_data: CreateUser, db) -> JSONResponse | None:
     error = None
-    check_user_exists = db.check_user(
-        user_data.email,
-        user_data.login,
-        user_data.phone
-    )
+    check_user_exists = db.check_user_with_email_and_phone(user_data.email, user_data.login, user_data.phone)
     if check_user_exists:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -26,9 +22,9 @@ async def check_valid_user_data(user_data: CreateUser, db) -> JSONResponse | Non
                 'reason': 'Юзер с таким email/login/phone уже существует!'
             }
         )
-    if not re.fullmatch(r'[a-zA-Z0-9-]{1,30}', user_data.login):
+    if not re.fullmatch(r'[a-zA-Z0-9-]{1,30}', user_data.login) or user_data.login == 'my':
         error = 'Вы ввели некорректный логин!'
-    elif not len(user_data.email) <= 50:
+    elif not 1 <= len(user_data.email) <= 50:
         error = 'Вы ввели некорректный email'
     elif (
         not 6 <= len(user_data.password) <= 100
@@ -54,10 +50,10 @@ async def check_valid_user_data(user_data: CreateUser, db) -> JSONResponse | Non
 
 
 async def authenticate_user(login: str, password: str, db, bcrypt_context: CryptContext) -> JSONResponse:
-    user = db.check_user(login=login, auth=True)
+    user = db.check_user(login=login)
     if not user:
         return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 'reason': 'Пользователь с указанным логином и паролем не найден'
             }
@@ -70,10 +66,3 @@ async def authenticate_user(login: str, password: str, db, bcrypt_context: Crypt
             }
         )
     return user
-
-
-async def create_token(login: str):
-    expires_delta = timedelta(hours=24)
-    exp = datetime.utcnow() + expires_delta
-    encode = {'sub': login, 'exp': exp}
-    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)

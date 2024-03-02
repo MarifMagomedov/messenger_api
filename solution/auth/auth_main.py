@@ -1,23 +1,21 @@
-from fastapi import APIRouter, Request
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.responses import JSONResponse, Response
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from starlette import status
 
 from .schemas import CreateUser, ReadUser
-from database.database_main import Database
+from database.database_main import database as db
 from database.models import User
-from .auth_functions import check_valid_user_data, authenticate_user, create_token
+from .auth_functions import check_valid_user_data, authenticate_user
+from utils.jwt_functions import create_token
 
 router = APIRouter(
     prefix='/api/auth',
-    tags=['/auth']
+    tags=['auth']
 )
 
 
-db = Database()
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl='/api/auth/token')
 
 
 @router.post('/register')
@@ -44,10 +42,10 @@ async def user_register(create_user_request: CreateUser):
 
 
 @router.post('/sign-in')
-async def user_sign_in(form_data: ReadUser, response: Response):
+async def user_sign_in(form_data: ReadUser):
     user_auth = await authenticate_user(form_data.login, form_data.password, db, bcrypt_context)
     if isinstance(user_auth, JSONResponse):
         return user_auth
-    token = await create_token(form_data.login)
-    response.headers['Authorization'] = f'Bearer {token}'
+    token = await create_token(form_data.login, form_data.password)
+    print(token)
     return {'token': token}
