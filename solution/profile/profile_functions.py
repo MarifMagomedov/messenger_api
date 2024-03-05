@@ -8,14 +8,14 @@ from .schemas import UserUpdate
 
 async def check_valid_update_user_data(user_data: UserUpdate, db) -> JSONResponse | None:
     error = None
-    if not db.check_country_code(user_data.countryCode):
+    if not db.check_country_code(user_data.countryCode.upper()):
         error = 'Вы ввели некорректный код страны'
     elif user_data.phone is not None:
-        if not re.fullmatch(r'\+\d+', user_data.phone):
+        if not re.fullmatch(r'\+\d{1,20}', user_data.phone):
             error = 'Вы ввели некорректный номер телефона!'
-    elif user_data.phone is not None:
-        if len(user_data.image) <= 200:
-            error = 'Вы отправили некорректное фото!!'
+    elif user_data.image is not None:
+        if not 1 <= len(user_data.image) <= 200:
+            error = 'Вы отправили некорректное фото!'
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={

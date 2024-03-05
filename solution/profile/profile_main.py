@@ -20,7 +20,8 @@ router = APIRouter(
 get_bearer_token = HTTPBearer(
     auto_error=False
 )
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+bcrypt_context = CryptContext(schemes=["sha256_crypt", "md5_crypt", "des_crypt"],
+                              default="des_crypt", deprecated="auto")
 
 
 @router.get('/me/profile')
@@ -53,6 +54,8 @@ async def edit_user_profile(
         user = db.check_user(login=token_data.login)
         if not bcrypt_context.verify(token_data.password, user.password):
             raise JWTError
+        if all(i[-1] is None for i in new_user_data):
+            return user.user_response()
         check_new_user_data = await check_valid_update_user_data(new_user_data, db)
         if isinstance(check_new_user_data, JSONResponse):
             return check_new_user_data
@@ -79,12 +82,7 @@ async def update_user_password(
         token_data = await read_token(token)
         user = db.check_user(login=token_data.login)
         if not user:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    'reason': 'Переданный токен не существует либо некорректен.'
-                }
-            )
+            raise JWTError
         if not bcrypt_context.verify(token_data.password, user.password):
             raise JWTError
         if not check_valid_password(token_data.password):
@@ -105,7 +103,6 @@ async def update_user_password(
             login=token_data.login,
             password=bcrypt_context.hash(update_password_form.newPassword)
         )
-        await create_token(token_data.login, update_password_form.newPassword)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -129,8 +126,9 @@ async def get_other_user_profile(
     try:
         token = token.credentials.replace('"', '')
         token_data = await read_token(token)
+        token_user = db.check_user(login=token_data.login)
         user = db.check_user(login=login)
-        if not bcrypt_context.verify(token_data.password, user.password):
+        if not bcrypt_context.verify(token_data.password, token_user.password):
             raise JWTError
         if not user:
             return JSONResponse(
@@ -139,7 +137,7 @@ async def get_other_user_profile(
                     'reason': 'Профиль с таким логином не существует'
                 }
             )
-        if not user.isPublic and user.isPublic != token_data.login:
+        if not user.isPublic and user.login != token_data.login:
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={

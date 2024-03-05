@@ -22,7 +22,11 @@ async def check_valid_user_data(user_data: CreateUser, db) -> JSONResponse | Non
                 'reason': 'Юзер с таким email/login/phone уже существует!'
             }
         )
-    if not re.fullmatch(r'[a-zA-Z0-9-]{1,30}', user_data.login) or user_data.login == 'my':
+    if (
+        not re.fullmatch(r'[a-zA-Z0-9-]{1,30}', user_data.login)
+        or user_data.login == 'my'
+        or not 6 <= len(user_data.login) <= 30
+    ):
         error = 'Вы ввели некорректный логин!'
     elif not 1 <= len(user_data.email) <= 50:
         error = 'Вы ввели некорректный email'
@@ -33,16 +37,16 @@ async def check_valid_user_data(user_data: CreateUser, db) -> JSONResponse | Non
         or not any(i in '0123456789' for i in user_data.password)
     ):
         error = 'Вы ввели некорректный пароль!'
-    elif not db.check_country_code(user_data.countryCode):
+    elif not db.check_country_code(user_data.countryCode.upper()):
         error = 'Вы ввели некорректный код страны'
     elif user_data.phone is not None:
-        if not re.fullmatch(r'\+\d+', user_data.phone):
+        if not re.fullmatch(r'\+\d{1,20}', user_data.phone):
             error = 'Вы ввели некорректный номер телефона!'
-    elif user_data.phone is not None:
-        if len(user_data.image) <= 200:
-            error = 'Вы отправили некорректное фото!!'
+    elif user_data.image is not None:
+        if not 1 <= len(user_data.image) <= 200:
+            error = 'Вы отправили некорректное фото!'
     return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
+        status_code=status.HTTP_400_BAD_REQUEST,
         content={
             'reason': error
         }

@@ -15,7 +15,8 @@ router = APIRouter(
 )
 
 
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+bcrypt_context = CryptContext(schemes=["sha256_crypt", "md5_crypt", "des_crypt"],
+                              default="des_crypt", deprecated="auto")
 
 
 @router.post('/register')
@@ -47,5 +48,4 @@ async def user_sign_in(form_data: ReadUser):
     if isinstance(user_auth, JSONResponse):
         return user_auth
     token = await create_token(form_data.login, form_data.password)
-    print(token)
     return {'token': token}

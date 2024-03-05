@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 
 
 class UserUpdate(BaseModel):
@@ -12,7 +12,6 @@ class UserUpdate(BaseModel):
             key: value for key, value in self.__dict__.items()
             if value is not None and key != 'password' and key != 'login'
         }
-
 
 class UpdatePassword(BaseModel):
     oldPassword: str
